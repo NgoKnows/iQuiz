@@ -2,9 +2,13 @@ import UIKit
 
 class QuizSelectController: UIViewController, UITableViewDelegate, UITableViewDataSource {
   var topics : [[String: String]] = [
-    ["title": "Mathematics", "image": "math", "description": "Do you know what 1 + 1 is?"],
+    ["title": "Science", "image": "science", "description": "Let's science!"],
     ["title": "Marvel Super Heroes", "image": "marvel", "description": "Test your marvel knowledge!"],
-    ["title": "Science", "image": "science", "description": "Let's science!"]];
+    ["title": "Mathematics", "image": "math", "description": "Do you know what 1 + 1 is?"]]
+    
+  
+  var topicInfo :[AnyObject] = []
+  var selected = 0
   
   @IBOutlet weak var tableView: UITableView!
 
@@ -13,6 +17,34 @@ class QuizSelectController: UIViewController, UITableViewDelegate, UITableViewDa
     
     tableView.delegate = self
     tableView.dataSource = self
+    
+    let url = NSURL(string: "https://tednewardsandbox.site44.com/questions.json")
+    let defaults = NSUserDefaults.standardUserDefaults()
+
+    let task = NSURLSession.sharedSession().dataTaskWithURL(url!) {(data, response, error) in
+      if error != nil {
+        // no internet connection so grab data locally
+        self.topicInfo = defaults.arrayForKey("data")!
+      } else {
+        let httpResponse = response as! NSHTTPURLResponse
+        let statusCode = httpResponse.statusCode
+      
+        if (statusCode == 200) {
+          do{
+            let json = try NSJSONSerialization.JSONObjectWithData(data!, options:.AllowFragments)
+            
+            // store this locally in case they have no internet later
+            defaults.setValue(json as! [AnyObject], forKey: "data")
+            
+            self.topicInfo = json as! [AnyObject]
+          }catch {
+            print("Error with Json: \(error)")
+          }
+        }
+      }
+    }
+    
+    task.resume()
   }
   @IBAction func handleSettingsClick(sender: AnyObject) {
     let alertView = UIAlertController(title: "Settings", message: "These are the settings!", preferredStyle: .Alert)
@@ -35,11 +67,18 @@ class QuizSelectController: UIViewController, UITableViewDelegate, UITableViewDa
     return cell
   }
   
+  func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    selected = indexPath.row
+    performSegueWithIdentifier("tableSegue", sender: nil)
+  }
 
   override func didReceiveMemoryWarning() {
     super.didReceiveMemoryWarning()
   }
-
-
-}
+  
+  override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject!) {
+      let vc = segue.destinationViewController as! QuestionController
+      vc.data = self.topicInfo[self.selected]
+    }
+  }
 
